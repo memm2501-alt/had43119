@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>4대 공학 분야별 재료 적합성 및 가중치 시각화</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Arial', sans-serif; background-color: #f1f5f9; margin: 20px; color: #1e293b; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        h1 { text-align: center; color: #1e3a8a; margin-bottom: 5px; font-size: 1.8rem; }
+        .subtitle { text-align: center; color: #64748b; margin-bottom: 30px; }
+        
+        .main-layout { display: flex; gap: 30px; margin-bottom: 40px; }
+        .control-panel { flex: 1.3; background: #f8fafc; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; }
+        .chart-panel { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #fff; padding: 15px; border-radius: 12px; box-shadow: inset 0 0 10px rgba(0,0,0,0.02); }
+        
+        .bottom-layout { background: #f8fafc; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; text-align: center; }
+        .radar-chart-container { max-width: 550px; margin: 0 auto; }
+
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; font-weight: bold; margin-bottom: 8px; color: #334155; }
+        .input-text { width: 100%; padding: 10px; border: 2px solid #cbd5e1; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+        
+        .slider-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .slider-table th, .slider-table td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 0.85rem; }
+        .slider-table th { background: #e2e8f0; color: #334155; font-weight: bold; }
+        
+        .slider-container { display: flex; align-items: center; gap: 12px; }
+        input[type="range"] { flex: 1; accent-color: #3b82f6; }
+        .weight-value { font-weight: bold; color: #3b82f6; width: 55px; text-align: right; }
+        .badge-reverse { background: #fee2e2; color: #ef4444; padding: 2px 4px; border-radius: 4px; font-size: 0.75rem; }
+        .badge-normal { background: #dbeafe; color: #2563eb; padding: 2px 4px; border-radius: 4px; font-size: 0.75rem; }
+        
+        canvas { max-width: 100%; max-height: 400px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🔬 다변수 선형 결합 기반 신소재 적합성 모델링</h1>
+    <p class="subtitle">설정한 8대 물성치($X$)가 정규화되어 네가 지정한 분야별 가중치 벡터($W$)와 결합하는 분석 시스템입니다.</p>
+    
+    <div class="main-layout">
+        <div class="control-panel">
+            <div class="input-group">
+                <label for="material-name">✏️ 분석할 재료 이름 입력</label>
+                <input type="text" id="material-name" class="input-text" value="Graphene 에어로젤" oninput="updateAnalysis()">
+            </div>
+            
+            <hr style="border: 0; height: 1px; background: #e2e8f0; margin: 20px 0;">
+            
+            <h3>⚙️ 재료의 실제 물성 데이터 조절</h3>
+            
+            <table class="slider-table">
+                <thead>
+                    <tr>
+                        <th>물성 항목 (단위)</th>
+                        <th>조사 범위 ($X_{min} \sim X_{max}$)</th>
+                        <th>수치 조절 슬라이더</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>내화학성 <br><small>(mm/year)</small> <span class="badge-reverse">낮음 우수</span></td>
+                        <td>0.01 ~ 10</td>
+                        <td>
+                            <div class="slider-container">
+                                <input type="range" id="score-x1" min="0.01" max="10" step="0.01" value="0.01" oninput="updateAnalysis()">
+                                <span id="val-x1" class="weight-value">0.01</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>내열성 <br><small>(°C)</small> <span class="badge-normal">높음 우수</span></td>
+                        <td>85 ~ 3245</td>
+                        <td>
+                            <div class="slider-container">
+                                <input type="range" id="score-x2" min="85" max="3245" step="5" value="1500" oninput="updateAnalysis()">
+                                <span id="val-x2" class="weight-value">1500</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>기계적 강도 <br><small>(MPa)</small> <span class="badge-normal">높음 우수</span></td>
+                        <td>0.5 ~ 130000</td>
+                        <td>
+                            <div class="slider-container">
+                                <input type="range" id="score-x3" min="0.5" max="130000" step="10" value="500" oninput="updateAnalysis()">
+                                <span id="val-x3" class="weight-value">500</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>경량성 (밀도) <br><small>(kg/m³)</small> <span class="badge-reverse">낮음 우수</span></td>
+                        <td>500 ~ 6150</td>
+                        <td>
+                            <div class="slider-container">
+                                <input type="range" id="score-x4" min="500" max="6150" step="10" value="2200" oninput="updateAnalysis()">
+                                <span id="val-x4" class="weight-value">2200</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>표면적 <br><small>(m²/g)</small> <span class="badge-normal">높음 우수</span></td>
+                        <td>1 ~ 4000</td>
+                        <td>
+                            <div class="slider-container">
+                                <input type="range" id="score-x5" min="1" max="4000" step="10" value="1" oninput="updateAnalysis()">
+                                <span id="val-x5" class="weight-value">1</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>다공성 <br><small>(%)</small> <span class="badge-normal">높음 우수</span></td>
+                        <td>0 ~ 90</td>
+                        <td>
+                            <div class="slider-container">
+                                <input type="range" id="score-x6" min="0" max="90" step="1" value="0" oninput="updateAnalysis()">
+                                <span id="val-x6" class="weight-value">0</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>열 전도성 <br><small>(W/m·K)</small> <span class="badge-normal">높음 우수</span></td>
+                        <td>0.2 ~ 4000</td>
+                        <td>
+                            <div class="slider-container">
+                                <input type="range" id="score-x7" min="0.2" max="4000" step="5" value="100" oninput="updateAnalysis()">
+                                <span id="val-x7" class="weight-value">100</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>전기 전도성 <br><small>(S/m)</small> <span class="badge-normal">높음 우수</span></td>
+                        <td>0 ~ 100000</td>
+                        <td>
+                            <div class="slider-container">
+                                <input type="range" id="score-x8" min="0" max="100000" step="100" value="0" oninput="updateAnalysis()">
+                                <span id="val-x8" class="weight-value">0</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="chart-panel">
+            <h3 id="chart-title">📊 분야별 적합도 결과</h3>
+            <canvas id="fieldChart"></canvas>
+        </div>
+    </div>
+
+    <div class="bottom-layout">
+        <h3>🎯 네가 설정한 공학 분야별 성질 중요도 기준 ($W$)</h3>
+        <p style="font-size: 0.9rem; color: #64748b; margin-top: -10px; margin-bottom: 20px;">각 변수들의 중요도 데이터가 완벽하게 반영되었습니다. (총합 100%)</p>
+        <div class="radar-chart-container">
+            <canvas id="criteriaChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 네가 직접 산출해서 제공해 준 4대 분야별 가중치 정밀 벡터 데이터 (w1 ~ w8)
+    const fieldWeights = {
+        '재료공학분야': [10, 10, 20, 10, 10, 10, 10, 20],
+        '항공우주분야': [25, 22, 20, 12, 11, 4,  3,  3],
+        '건축 분야':   [20, 18, 16, 15, 13, 8,  7,  3],
+        '생명분야':     [10, 10, 20, 10, 10, 10, 10, 20] // 재료공학분야와 동일한 규칙 반영
+    };
+
+    // 물성별 데이터 분석 경계 조건 상수값 설정
+    const bounds = {
+        x1: { min: 0.01, max: 10, isReverse: true },
+        x2: { min: 85, max: 3245, isReverse: false },
+        x3: { min: 0.5, max: 130000, isReverse: false },
+        x4: { min: 500, max: 6150, isReverse: true },
+        x5: { min: 1, max: 4000, isReverse: false },
+        x6: { min: 0, max: 90, isReverse: false },
+        x7: { min: 0.2, max: 4000, isReverse: false },
+        x8: { min: 0, max: 100000, isReverse: false }
+    };
+
+    let fieldChart = null;
+    let criteriaChart = null;
+
+    function updateAnalysis() {
+        const matName = document.getElementById('material-name').value || '이름 없음';
+        document.getElementById('chart-title').innerText = `📊 '${matName}'의 분야별 최종 적합도 결과`;
+
+        const rawValues = {
+            x1: parseFloat(document.getElementById('score-x1').value),
+            x2: parseFloat(document.getElementById('score-x2').value),
+            x3: parseFloat(document.getElementById('score-x3').value),
+            x4: parseFloat(document.getElementById('score-x4').value),
+            x5: parseFloat(document.getElementById('score-x5').value),
+            x6: parseFloat(document.getElementById('score-x6').value),
+            x7: parseFloat(document.getElementById('score-x7').value),
+            x8: parseFloat(document.getElementById('score-x8').value)
+        };
+
+        // 실시간 수치 텍스트 표기 동기화
+        Object.keys(rawValues).forEach(key => {
+            document.getElementById(`val-${key}`).innerText = rawValues[key];
+        });
+
+        // 1단계: 최대-최소 정규화 수식 변환 (X -> X')
+        const normalizedXPrime = [];
+        Object.keys(bounds).forEach(key => {
+            const b = bounds[key];
+            const x = rawValues[key];
+            let xPrime = 0;
+            
+            if (b.isReverse) {
+                // 역방향 정규화 적용 (내화학성, 경량성 밀도용)
+                xPrime = (b.max - x) / (b.max - b.min);
+            } else {
+                // 일반 정규화 적용
+                xPrime = (x - b.min) / (b.max - b.min);
+            }
+            normalizedXPrime.push(xPrime);
+        });
+
+        // 2단계: 분야별 적합도 선형 결합 연산 (W * X')
+        const labels = Object.keys(fieldWeights);
+        const suitabilityScores = [];
+
+        labels.forEach(field => {
+            const weights = fieldWeights[field];
+            let dotProduct = 0;
+            
+            for (let i = 0; i < 8; i++) {
+                dotProduct += weights[i] * normalizedXPrime[i];
+            }
+            suitabilityScores.push(dotProduct.toFixed(2));
+        });
+
+        // 우측: 100점 만점 기준 분야별 적합도 막대 그래프 렌더링
+        const ctxField = document.getElementById('fieldChart').getContext('2d');
+        if (fieldChart) fieldChart.destroy();
+        
+        fieldChart = new Chart(ctxField, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: `${matName}의 종합 분야 적합도 (% 단위 / 100점 만점)`,
+                    data: suitabilityScores,
+                    backgroundColor: ['rgba(59, 130, 246, 0.7)', 'rgba(244, 63, 94, 0.7)', 'rgba(245, 158, 11, 0.7)', 'rgba(16, 185, 129, 0.7)'],
+                    borderColor: ['rgba(59, 130, 246, 1)', 'rgba(244, 63, 94, 1)', 'rgba(245, 158, 11, 1)', 'rgba(16, 185, 129, 1)'],
+                    borderWidth: 1.5
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true, max: 100 } }
+            }
+        });
+    }
+
+    // 하단: 네가 고안한 8차원 가중치 레이더 차트 생성
+    function drawCriteriaChart() {
+        const ctxCriteria = document.getElementById('criteriaChart').getContext('2d');
+        const fields = Object.keys(fieldWeights);
+        const datasets = [];
+        const colors = [
+            { bg: 'rgba(59, 130, 246, 0.05)', border: 'rgba(59, 130, 246, 1)' },  
+            { bg: 'rgba(244, 63, 94, 0.05)', border: 'rgba(244, 63, 94, 1)' },  
+            { bg: 'rgba(245, 158, 11, 0.05)', border: 'rgba(245, 158, 11, 1)' }, 
+            { bg: 'rgba(16, 185, 129, 0.05)', border: 'rgba(16, 185, 129, 1)' }  
+        ];
+
+        fields.forEach((field, index) => {
+            datasets.push({
+                label: field,
+                data: fieldWeights[field],
+                backgroundColor: colors[index].bg,
+                borderColor: colors[index].border,
+                borderWidth: 1.5,
+                pointRadius: 2
+            });
+        });
+
+        criteriaChart = new Chart(ctxCriteria, {
+            type: 'radar',
+            data: {
+                labels: ['내화학성', '내열성', '기계적강도', '경량성', '표면적', '다공성', '열전도성', '전기전도성'],
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                scales: { r: { suggestedMin: 0, suggestedMax: 30 } }
+            }
+        });
+    }
+
+    window.onload = function() {
+        updateAnalysis();
+        drawCriteriaChart();
+    };
+</script>
+
+</body>
+</html>
